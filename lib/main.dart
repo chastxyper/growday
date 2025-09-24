@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'screens/loginPage.dart';
 
-void main() async {
-  // Ensures Flutter widgets are initialized
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  await Firebase.initializeApp();
-
+void main() {
   runApp(const HabitTrackerApp());
 }
 
@@ -19,11 +13,8 @@ class HabitTrackerApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Habit Tracker',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: Scaffold(
-        appBar: AppBar(title: const Text("Habit Tracker")),
-        body: const Center(child: Text("Firebase Connected ✅")),
-      ),
+      theme: ThemeData(primarySwatch: Colors.indigo),
+      home: const LoginPage(),
     );
   }
 }
