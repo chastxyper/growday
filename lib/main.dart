@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/loginPage.dart';
+import 'screens/login_page.dart';
 
 void main() {
   runApp(const HabitTrackerApp());
