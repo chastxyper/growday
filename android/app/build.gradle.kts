@@ -39,6 +39,16 @@ flutter {
 }
 
 dependencies {
+    // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
+
+    // Core Firebase dependencies
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-core")
+
+    // Authentication
     implementation("com.google.firebase:firebase-auth")
+
+    // Firestore (needed for your HomePage)
+    implementation("com.google.firebase:firebase-firestore")
 }

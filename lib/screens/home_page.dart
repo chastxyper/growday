@@ -8,6 +8,7 @@ class HomePage extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
+    if (!context.mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -38,11 +39,15 @@ class HomePage extends StatelessWidget {
             .doc(user.uid)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final userData = snapshot.data!.data() as Map<String, dynamic>?;
+          if (snapshot.hasError) {
+            return const Center(child: Text("Error loading user data"));
+          }
+
+          final userData = snapshot.data?.data() as Map<String, dynamic>?;
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -55,7 +60,7 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Example habit list (later you’ll store real habits in Firestore)
+              // Example static habits
               _habitCard("Morning Jog", "Completed 3/7 days"),
               _habitCard("Drink Water", "Completed 5/7 days"),
               _habitCard("Read Book", "Completed 2/7 days"),

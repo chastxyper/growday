@@ -17,10 +17,20 @@ class _SignupPageState extends State<SignupPage> {
 
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_passwordController.text != _confirmPasswordController.text) {
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Passwords don’t match")));
@@ -30,14 +40,14 @@ class _SignupPageState extends State<SignupPage> {
     try {
       setState(() => _isLoading = true);
 
-      // Create user in FirebaseAuth
-      UserCredential userCred = await FirebaseAuth.instance
+      // ✅ Create user in FirebaseAuth
+      final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
 
-      // Save user info in Firestore
+      // ✅ Store extra info in Firestore
       await FirebaseFirestore.instance
           .collection("users")
           .doc(userCred.user!.uid)
@@ -46,17 +56,21 @@ class _SignupPageState extends State<SignupPage> {
             "createdAt": Timestamp.now(),
           });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Signup successful! Please log in.")),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Signup successful!")));
 
-      Navigator.pop(context); // Go back to login
+      Navigator.pop(context); // 👈 safe because of mounted check above
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message ?? "Signup failed")));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -64,24 +78,24 @@ class _SignupPageState extends State<SignupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Sign Up")),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: "Email"),
-                validator: (val) => val!.isEmpty ? "Enter an email" : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? "Enter an email" : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: "Password"),
                 obscureText: true,
-                validator: (val) => val!.length < 6
+                validator: (val) => val != null && val.length < 6
                     ? "Password must be at least 6 characters"
                     : null,
               ),
@@ -95,7 +109,7 @@ class _SignupPageState extends State<SignupPage> {
               ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const CircularProgressIndicator()
                   : ElevatedButton(
                       onPressed: _signup,
                       child: const Text("Sign Up"),

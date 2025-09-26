@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // <-- generated or manually created
 import 'screens/login_page.dart';
 
-void main() {
-  runApp(const HabitTrackerApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.android, // <-- use Android options
+  );
+
+  runApp(const MyApp());
 }
 
-class HabitTrackerApp extends StatelessWidget {
-  const HabitTrackerApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Habit Tracker',
-      theme: ThemeData(primarySwatch: Colors.indigo),
       home: const LoginPage(),
     );
   }

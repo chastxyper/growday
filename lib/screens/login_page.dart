@@ -17,6 +17,13 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -73,7 +80,6 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(title: const Text("Login")),
       body: SingleChildScrollView(
-        // ✅ prevents button from hiding
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
@@ -83,14 +89,16 @@ class _LoginPageState extends State<LoginPage> {
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: "Email"),
-                validator: (val) => val!.isEmpty ? "Enter your email" : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? "Enter your email" : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: "Password"),
                 obscureText: true,
-                validator: (val) => val!.isEmpty ? "Enter your password" : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? "Enter your password" : null,
               ),
               const SizedBox(height: 20),
               _isLoading
@@ -113,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: _loginAsGuest, // ✅ guest login
+                onPressed: _loginAsGuest,
                 child: const Text("Continue as Guest"),
               ),
             ],
