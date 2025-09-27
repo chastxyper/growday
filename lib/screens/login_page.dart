@@ -1,7 +1,7 @@
+// lib/screens/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
-import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,51 +27,70 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
     try {
       setState(() => _isLoading = true);
+      print('🔐 Attempting signInWithEmailAndPassword for: $email');
 
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
 
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      print('✅ signIn succeeded — uid: ${cred.user?.uid}');
+      print(
+        'currentUser after signIn: ${FirebaseAuth.instance.currentUser?.uid}',
       );
-    } on FirebaseAuthException catch (e) {
+      // Do not navigate: AuthWrapper will respond to authStateChanges.
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.message ?? "Login failed")));
+      ).showSnackBar(const SnackBar(content: Text('Login successful')));
+    } on FirebaseAuthException catch (e) {
+      print('❌ FirebaseAuthException during login: ${e.code} - ${e.message}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login error: ${e.code}')));
+    } catch (e, st) {
+      print('❌ General error during login: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login failed (see console)')),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loginAsGuest() async {
     try {
       setState(() => _isLoading = true);
+      print('🔐 Attempting anonymous sign-in');
 
-      await FirebaseAuth.instance.signInAnonymously();
-
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+      final cred = await FirebaseAuth.instance.signInAnonymously();
+      print('✅ anonymous sign-in uid: ${cred.user?.uid}');
+      print(
+        'currentUser after anon signIn: ${FirebaseAuth.instance.currentUser?.uid}',
       );
     } on FirebaseAuthException catch (e) {
+      print(
+        '❌ FirebaseAuthException during anonymous login: ${e.code} - ${e.message}',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Guest login error: ${e.code}')));
+    } catch (e, st) {
+      print('❌ General error during anonymous login: $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Guest login failed")),
+        const SnackBar(content: Text('Guest login failed (see console)')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

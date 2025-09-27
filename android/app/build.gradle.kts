@@ -42,13 +42,12 @@ dependencies {
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
 
-    // Core Firebase dependencies
+    // Firebase Analytics (optional but recommended)
     implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-core")
 
-    // Authentication
+    // Firebase Authentication
     implementation("com.google.firebase:firebase-auth")
 
-    // Firestore (needed for your HomePage)
+    // Firestore Database
     implementation("com.google.firebase:firebase-firestore")
 }

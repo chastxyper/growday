@@ -59,4 +59,5 @@ class DefaultFirebaseOptions {
     projectId: 'habit-tracker-f911d',
     storageBucket: 'habit-tracker-f911d.firebasestorage.app',
   );
+
 }
