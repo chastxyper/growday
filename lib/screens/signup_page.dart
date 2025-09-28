@@ -10,24 +10,30 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
+  // Form key for validation
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers for form fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _isLoading = false;
+  bool _isLoading = false; // Loading state for signup process
 
   @override
   void dispose() {
+    // Dispose controllers to free memory
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  /// Handles user signup with Firebase Authentication and Firestore
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check if password and confirm password match
     if (_passwordController.text.trim() !=
         _confirmPasswordController.text.trim()) {
       if (!mounted) return;
@@ -40,14 +46,14 @@ class _SignupPageState extends State<SignupPage> {
     try {
       setState(() => _isLoading = true);
 
-      // ✅ Create user in FirebaseAuth
+      // Create user in Firebase Authentication
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
 
-      // ✅ Store extra info in Firestore
+      // Store extra user info in Firestore
       await FirebaseFirestore.instance
           .collection("users")
           .doc(userCred.user!.uid)
@@ -57,19 +63,22 @@ class _SignupPageState extends State<SignupPage> {
           });
 
       if (!mounted) return;
+      // Show success message
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Signup successful!")));
 
-      Navigator.pop(context); // 👈 safe because of mounted check above
+      // Go back to previous screen (login page)
+      Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
+      // Show Firebase-specific error
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message ?? "Signup failed")));
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isLoading = false); // Reset loading state
       }
     }
   }
@@ -84,6 +93,7 @@ class _SignupPageState extends State<SignupPage> {
           key: _formKey,
           child: Column(
             children: [
+              // Email field
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: "Email"),
@@ -91,6 +101,8 @@ class _SignupPageState extends State<SignupPage> {
                     val == null || val.isEmpty ? "Enter an email" : null,
               ),
               const SizedBox(height: 12),
+
+              // Password field
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: "Password"),
@@ -100,6 +112,8 @@ class _SignupPageState extends State<SignupPage> {
                     : null,
               ),
               const SizedBox(height: 12),
+
+              // Confirm password field
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration: const InputDecoration(
@@ -108,6 +122,8 @@ class _SignupPageState extends State<SignupPage> {
                 obscureText: true,
               ),
               const SizedBox(height: 20),
+
+              // Signup button or loading spinner
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(

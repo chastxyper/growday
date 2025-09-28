@@ -1,4 +1,3 @@
-// lib/screens/login_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_page.dart';
@@ -24,6 +23,8 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  /// Handles user login with email & password.
+  /// If successful, AuthWrapper will detect the state and navigate to HomePage.
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -32,68 +33,54 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       setState(() => _isLoading = true);
-      print('🔐 Attempting signInWithEmailAndPassword for: $email');
 
-      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      print('✅ signIn succeeded — uid: ${cred.user?.uid}');
-      print(
-        'currentUser after signIn: ${FirebaseAuth.instance.currentUser?.uid}',
-      );
-      // Do not navigate: AuthWrapper will respond to authStateChanges.
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Login successful')));
     } on FirebaseAuthException catch (e) {
-      print('❌ FirebaseAuthException during login: ${e.code} - ${e.message}');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Login error: ${e.code}')));
-    } catch (e, st) {
-      print('❌ General error during login: $e\n$st');
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed (see console)')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Login failed')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  /// Handles anonymous login (guest mode).
+  /// AuthWrapper will update the state to show HomePage after login.
   Future<void> _loginAsGuest() async {
     try {
       setState(() => _isLoading = true);
-      print('🔐 Attempting anonymous sign-in');
-
-      final cred = await FirebaseAuth.instance.signInAnonymously();
-      print('✅ anonymous sign-in uid: ${cred.user?.uid}');
-      print(
-        'currentUser after anon signIn: ${FirebaseAuth.instance.currentUser?.uid}',
-      );
+      await FirebaseAuth.instance.signInAnonymously();
     } on FirebaseAuthException catch (e) {
-      print(
-        '❌ FirebaseAuthException during anonymous login: ${e.code} - ${e.message}',
-      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Guest login error: ${e.code}')));
-    } catch (e, st) {
-      print('❌ General error during anonymous login: $e\n$st');
+    } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Guest login failed (see console)')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Guest login failed')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  /// Builds the login page UI with email/password fields,
+  /// login button, signup redirect, and guest login option.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,6 +92,7 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Email field
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: "Email"),
@@ -112,6 +100,8 @@ class _LoginPageState extends State<LoginPage> {
                     val == null || val.isEmpty ? "Enter your email" : null,
               ),
               const SizedBox(height: 12),
+
+              // Password field
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: "Password"),
@@ -120,6 +110,8 @@ class _LoginPageState extends State<LoginPage> {
                     val == null || val.isEmpty ? "Enter your password" : null,
               ),
               const SizedBox(height: 20),
+
+              // Login button
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
@@ -127,6 +119,8 @@ class _LoginPageState extends State<LoginPage> {
                       child: const Text("Login"),
                     ),
               const SizedBox(height: 12),
+
+              // Navigate to signup
               Center(
                 child: TextButton(
                   onPressed: () {
@@ -139,6 +133,8 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // Guest login button
               OutlinedButton(
                 onPressed: _loginAsGuest,
                 child: const Text("Continue as Guest"),
