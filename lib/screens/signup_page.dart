@@ -10,30 +10,27 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  // Form key for validation
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for form fields
+  final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _isLoading = false; // Loading state for signup process
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    // Dispose controllers to free memory
+    _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  /// Handles user signup with Firebase Authentication and Firestore
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if password and confirm password match
     if (_passwordController.text.trim() !=
         _confirmPasswordController.text.trim()) {
       if (!mounted) return;
@@ -46,40 +43,47 @@ class _SignupPageState extends State<SignupPage> {
     try {
       setState(() => _isLoading = true);
 
-      // Create user in Firebase Authentication
+      // Step 1: Create user in FirebaseAuth
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
 
-      // Store extra user info in Firestore
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userCred.user!.uid)
-          .set({
-            "email": _emailController.text.trim(),
-            "createdAt": Timestamp.now(),
-          });
+      final uid = userCred.user!.uid;
+
+      // Step 2: Save user profile in Firestore
+      await FirebaseFirestore.instance.collection("users").doc(uid).set({
+        "fullName": _fullNameController.text.trim(),
+        "email": _emailController.text.trim(),
+        "createdAt": FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
-      // Show success message
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Signup successful!")));
 
-      // Go back to previous screen (login page)
-      Navigator.pop(context);
+      Navigator.pop(context); // go back to login page
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      // Show Firebase-specific error
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.message ?? "Signup failed")));
+      ).showSnackBar(SnackBar(content: Text("Auth error: ${e.message}")));
+    } on FirebaseException catch (e) {
+      // Firestore-specific errors
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Firestore error: ${e.message}")));
+    } catch (e) {
+      // Any other errors
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Unexpected error: $e")));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false); // Reset loading state
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -93,6 +97,15 @@ class _SignupPageState extends State<SignupPage> {
           key: _formKey,
           child: Column(
             children: [
+              // Full name field
+              TextFormField(
+                controller: _fullNameController,
+                decoration: const InputDecoration(labelText: "Full Name"),
+                validator: (val) =>
+                    val == null || val.isEmpty ? "Enter your name" : null,
+              ),
+              const SizedBox(height: 12),
+
               // Email field
               TextFormField(
                 controller: _emailController,
@@ -123,7 +136,6 @@ class _SignupPageState extends State<SignupPage> {
               ),
               const SizedBox(height: 20),
 
-              // Signup button or loading spinner
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
