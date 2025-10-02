@@ -88,8 +88,9 @@ class _HomePageState extends State<HomePage> {
                             "title": titleController.text.trim(),
                             "description": descriptionController.text.trim(),
                             "frequency": frequencyController.text.trim(),
-                            "createdAt":
-                                FieldValue.serverTimestamp(), // only used when new
+                            "createdAt": FieldValue.serverTimestamp(),
+                            "completed": false,
+                            "completedAt": null,
                           };
 
                           if (id == null) {
@@ -100,6 +101,17 @@ class _HomePageState extends State<HomePage> {
                             habitData.remove("createdAt"); // keep old timestamp
                             await _habitCollection.doc(id).update(habitData);
                           }
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                id == null ? "Habit added" : "Habit updated",
+                              ),
+                              backgroundColor: id == null
+                                  ? Colors.green
+                                  : Colors.blue,
+                            ),
+                          );
 
                           Navigator.of(context).pop();
                         }
@@ -139,6 +151,42 @@ class _HomePageState extends State<HomePage> {
 
     if (confirm == true) {
       await _habitCollection.doc(id).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Habit deleted"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Mark as complete / incomplete
+  Future<void> _toggleComplete(String id, Map<String, dynamic> habit) async {
+    try {
+      final isCompleted = habit["completed"] == true;
+
+      await _habitCollection.doc(id).update({
+        "completed": !isCompleted,
+        "completedAt": !isCompleted
+            ? FieldValue.serverTimestamp()
+            : null, // reset if undone
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isCompleted ? "Habit marked incomplete" : "Habit completed 🎉",
+          ),
+          backgroundColor: isCompleted ? Colors.orange : Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to update habit status"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -186,11 +234,29 @@ class _HomePageState extends State<HomePage> {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: ListTile(
-                  title: Text(habit["title"] ?? "Untitled"),
+                  title: Text(
+                    habit["title"] ?? "Untitled",
+                    style: TextStyle(
+                      decoration: habit["completed"] == true
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
                   subtitle: Text(habit["frequency"] ?? ""),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: Icon(
+                          habit["completed"] == true
+                              ? Icons.check_circle
+                              : Icons.check_circle_outline,
+                          color: habit["completed"] == true
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                        onPressed: () => _toggleComplete(id, habit),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () => _updateHabitForm(id, habit),
