@@ -19,17 +19,12 @@ class _HomePageState extends State<HomePage> {
         .collection("habits");
   }
 
-  // Add Habit Form
-  Future<void> _addHabitForm() async {
-    await _openHabitForm();
-  }
+  // ---------------------- Habit Form (Add / Update) ----------------------
+  Future<void> _addHabitForm() async => _openHabitForm();
 
-  // Update Habit Form
-  Future<void> _updateHabitForm(String id, Map<String, dynamic> habit) async {
-    await _openHabitForm(id: id, habit: habit);
-  }
+  Future<void> _updateHabitForm(String id, Map<String, dynamic> habit) async =>
+      _openHabitForm(id: id, habit: habit);
 
-  // Reusable form (used by Add and Update)
   Future<void> _openHabitForm({String? id, Map<String, dynamic>? habit}) async {
     final _formKey = GlobalKey<FormState>();
     final TextEditingController titleController = TextEditingController(
@@ -50,8 +45,7 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: ListView(
                 children: [
                   TextFormField(
                     controller: titleController,
@@ -82,6 +76,12 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 24),
                   Center(
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           final habitData = {
@@ -94,18 +94,18 @@ class _HomePageState extends State<HomePage> {
                           };
 
                           if (id == null) {
-                            // Add new
                             await _habitCollection.add(habitData);
                           } else {
-                            // Update existing
-                            habitData.remove("createdAt"); // keep old timestamp
+                            habitData.remove("createdAt");
                             await _habitCollection.doc(id).update(habitData);
                           }
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                id == null ? "Habit added" : "Habit updated",
+                                id == null
+                                    ? "Habit added successfully"
+                                    : "Habit updated successfully",
                               ),
                               backgroundColor: id == null
                                   ? Colors.green
@@ -116,7 +116,10 @@ class _HomePageState extends State<HomePage> {
                           Navigator.of(context).pop();
                         }
                       },
-                      child: Text(id == null ? "Save Habit" : "Update Habit"),
+                      child: Text(
+                        id == null ? "Save Habit" : "Update Habit",
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ],
@@ -128,7 +131,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Delete with confirmation
+  // ---------------------- Delete Habit ----------------------
   Future<void> _deleteHabit(String id, String title) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -141,8 +144,8 @@ class _HomePageState extends State<HomePage> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(context).pop(true),
             child: const Text("Delete"),
           ),
         ],
@@ -160,16 +163,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Mark as complete / incomplete
+  // ---------------------- Complete / Incomplete ----------------------
   Future<void> _toggleComplete(String id, Map<String, dynamic> habit) async {
     try {
       final isCompleted = habit["completed"] == true;
-
       await _habitCollection.doc(id).update({
         "completed": !isCompleted,
-        "completedAt": !isCompleted
-            ? FieldValue.serverTimestamp()
-            : null, // reset if undone
+        "completedAt": !isCompleted ? FieldValue.serverTimestamp() : null,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,18 +190,24 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ---------------------- Logout ----------------------
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
   }
 
+  // ---------------------- UI ----------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Habits"),
+        title: const Text(
+          "My Habits",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: "Logout",
             onPressed: _logout,
           ),
         ],
@@ -212,19 +218,25 @@ class _HomePageState extends State<HomePage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text("Error loading data"));
+            return const Center(child: Text("Error loading habits"));
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           final data = snapshot.data!.docs;
-
           if (data.isEmpty) {
-            return const Center(child: Text("No habits yet. Add one!"));
+            return const Center(
+              child: Text(
+                "No habits yet.\nTap + to add one!",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: data.length,
             itemBuilder: (context, index) {
               final doc = data[index];
@@ -232,19 +244,35 @@ class _HomePageState extends State<HomePage> {
               final id = doc.id;
 
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 6),
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   title: Text(
                     habit["title"] ?? "Untitled",
                     style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                       decoration: habit["completed"] == true
                           ? TextDecoration.lineThrough
                           : null,
+                      color: habit["completed"] == true
+                          ? Colors.grey
+                          : Colors.black,
                     ),
                   ),
-                  subtitle: Text(habit["frequency"] ?? ""),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  subtitle: Text(
+                    habit["frequency"] ?? "",
+                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                  trailing: Wrap(
+                    spacing: 4,
                     children: [
                       IconButton(
                         icon: Icon(
@@ -275,6 +303,7 @@ class _HomePageState extends State<HomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addHabitForm,
+        backgroundColor: Colors.deepPurple,
         child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -284,9 +313,17 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(icon: const Icon(Icons.access_time), onPressed: () {}),
-            const SizedBox(width: 40), // space for FAB
-            IconButton(icon: const Icon(Icons.person), onPressed: () {}),
+            IconButton(
+              icon: const Icon(Icons.access_time),
+              onPressed: () {},
+              tooltip: "Habits",
+            ),
+            const SizedBox(width: 40),
+            IconButton(
+              icon: const Icon(Icons.person),
+              onPressed: () {},
+              tooltip: "Profile",
+            ),
           ],
         ),
       ),
