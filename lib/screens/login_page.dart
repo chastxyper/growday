@@ -24,7 +24,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   /// Handles user login with email & password.
-  /// If successful, AuthWrapper will detect the state and navigate to HomePage.
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -59,11 +58,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   /// Handles anonymous login (guest mode).
-  /// AuthWrapper will update the state to show HomePage after login.
   Future<void> _loginAsGuest() async {
     try {
       setState(() => _isLoading = true);
       await FirebaseAuth.instance.signInAnonymously();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Guest login successful')));
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -79,67 +82,74 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Builds the login page UI with email/password fields,
-  /// login button, signup redirect, and guest login option.
+  /// Builds the login page UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Login")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Email field
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: "Email"),
-                validator: (val) =>
-                    val == null || val.isEmpty ? "Enter your email" : null,
-              ),
-              const SizedBox(height: 12),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400), // card width
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // vertical center
+                crossAxisAlignment: CrossAxisAlignment.stretch, // full width
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Email field
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: "Email"),
+                    validator: (val) =>
+                        val == null || val.isEmpty ? "Enter your email" : null,
+                  ),
+                  const SizedBox(height: 12),
 
-              // Password field
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: "Password"),
-                obscureText: true,
-                validator: (val) =>
-                    val == null || val.isEmpty ? "Enter your password" : null,
-              ),
-              const SizedBox(height: 20),
+                  // Password field
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(labelText: "Password"),
+                    obscureText: true,
+                    validator: (val) => val == null || val.isEmpty
+                        ? "Enter your password"
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
 
-              // Login button
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _login,
-                      child: const Text("Login"),
+                  // Login button
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ElevatedButton(
+                          onPressed: _login,
+                          child: const Text("Login"),
+                        ),
+                  const SizedBox(height: 12),
+
+                  // Navigate to signup
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SignupPage()),
+                        );
+                      },
+                      child: const Text("Don’t have an account? Sign up"),
                     ),
-              const SizedBox(height: 12),
+                  ),
+                  const SizedBox(height: 12),
 
-              // Navigate to signup
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignupPage()),
-                    );
-                  },
-                  child: const Text("Don’t have an account? Sign up"),
-                ),
+                  // Guest login button
+                  OutlinedButton(
+                    onPressed: _loginAsGuest,
+                    child: const Text("Continue as Guest"),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-
-              // Guest login button
-              OutlinedButton(
-                onPressed: _loginAsGuest,
-                child: const Text("Continue as Guest"),
-              ),
-            ],
+            ),
           ),
         ),
       ),

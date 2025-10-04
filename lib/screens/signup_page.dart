@@ -71,13 +71,11 @@ class _SignupPageState extends State<SignupPage> {
         context,
       ).showSnackBar(SnackBar(content: Text("Auth error: ${e.message}")));
     } on FirebaseException catch (e) {
-      // Firestore-specific errors
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Firestore error: ${e.message}")));
     } catch (e) {
-      // Any other errors
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -91,58 +89,66 @@ class _SignupPageState extends State<SignupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Sign Up")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Full name field
-              TextFormField(
-                controller: _fullNameController,
-                decoration: const InputDecoration(labelText: "Full Name"),
-                validator: (val) =>
-                    val == null || val.isEmpty ? "Enter your name" : null,
-              ),
-              const SizedBox(height: 12),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400), // like a card
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center, // vertical center
+                crossAxisAlignment: CrossAxisAlignment.center, // horizontal
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Full name field
+                  TextFormField(
+                    controller: _fullNameController,
+                    decoration: const InputDecoration(labelText: "Full Name"),
+                    validator: (val) =>
+                        val == null || val.isEmpty ? "Enter your name" : null,
+                  ),
+                  const SizedBox(height: 12),
 
-              // Email field
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: "Email"),
-                validator: (val) =>
-                    val == null || val.isEmpty ? "Enter an email" : null,
-              ),
-              const SizedBox(height: 12),
+                  // Email field
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: "Email"),
+                    validator: (val) =>
+                        val == null || val.isEmpty ? "Enter an email" : null,
+                  ),
+                  const SizedBox(height: 12),
 
-              // Password field
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: "Password"),
-                obscureText: true,
-                validator: (val) => val != null && val.length < 6
-                    ? "Password must be at least 6 characters"
-                    : null,
-              ),
-              const SizedBox(height: 12),
+                  // Password field
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(labelText: "Password"),
+                    obscureText: true,
+                    validator: (val) => val != null && val.length < 6
+                        ? "Password must be at least 6 characters"
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
 
-              // Confirm password field
-              TextFormField(
-                controller: _confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: "Confirm Password",
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 20),
-
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _signup,
-                      child: const Text("Sign Up"),
+                  // Confirm password field
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    decoration: const InputDecoration(
+                      labelText: "Confirm Password",
                     ),
-            ],
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 20),
+
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(
+                          onPressed: _signup,
+                          child: const Text("Sign Up"),
+                        ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
