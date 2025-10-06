@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.habit_tracker"
+    namespace = "com.example.growday"
     compileSdk = 34
     ndkVersion = "27.0.12077973"
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.habit_tracker"
+        applicationId = "com.example.growday"
         minSdk = 23
         targetSdk = 34
         versionCode = flutter.versionCode
