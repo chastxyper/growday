@@ -5,7 +5,17 @@ import 'auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print("✅ Firebase initialized successfully");
+  } catch (e, stack) {
+    print("❌ Firebase initialization failed: $e");
+    print(stack);
+  }
+
   runApp(const MyApp());
 }
 
@@ -16,7 +26,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "Habit Tracker",
+      title: "GrowDay",
       home: const AuthWrapper(),
     );
   }
