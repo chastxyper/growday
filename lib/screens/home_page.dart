@@ -147,6 +147,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ---------------------- Show Habit Details ----------------------
+  void _showHabitDetails(String id, Map<String, dynamic> habit) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(habit["title"] ?? "Habit Details"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (habit["description"] != null && habit["description"] != "")
+              Text(habit["description"]),
+            const SizedBox(height: 10),
+            Text("Frequency: ${habit["frequency"] ?? "N/A"}"),
+            Text("Streak: ${habit["streakCount"] ?? 0} 🔥"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _toggleComplete(id, habit);
+            },
+            child: Text(
+              habit["completed"] == true
+                  ? "Mark Incomplete"
+                  : "Mark Complete ✅",
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------------- Logout ----------------------
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
@@ -165,16 +203,34 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          "My Habits",
+          "GrowDay",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            tooltip: "Logout",
-            onPressed: _logout,
-          ),
-        ],
+      ),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            UserAccountsDrawerHeader(
+              accountName: Text(user?.displayName ?? "User"),
+              accountEmail: Text(user?.email ?? "No email"),
+              currentAccountPicture: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.person, size: 40, color: Colors.deepPurple),
+              ),
+              decoration: const BoxDecoration(color: Colors.deepPurple),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text("Settings"),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text("Logout"),
+              onTap: _logout,
+            ),
+          ],
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _habitCollection
@@ -207,81 +263,72 @@ class _HomePageState extends State<HomePage> {
               final habit = doc.data() as Map<String, dynamic>;
               final id = doc.id;
 
-              return Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              return Dismissible(
+                key: Key(id),
+                background: Container(
+                  color: Colors.green,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  child: const Icon(Icons.check, color: Colors.white, size: 28),
                 ),
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                secondaryBackground: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(
+                    Icons.delete,
+                    color: Colors.white,
+                    size: 28,
                   ),
-                  title: Text(
-                    habit["title"] ?? "Untitled",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      decoration: habit["completed"] == true
-                          ? TextDecoration.lineThrough
-                          : null,
-                      color: habit["completed"] == true
-                          ? Colors.grey
-                          : Colors.black,
+                ),
+                confirmDismiss: (direction) async {
+                  if (direction == DismissDirection.startToEnd) {
+                    // Swipe right → toggle complete
+                    await _toggleComplete(id, habit);
+                    return false;
+                  } else if (direction == DismissDirection.endToStart) {
+                    // Swipe left → delete with confirm
+                    await _deleteHabit(id, habit["title"] ?? "");
+                    return false;
+                  }
+                  return false;
+                },
+                child: Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
                     ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        habit["frequency"] ?? "",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black54,
-                        ),
+                    onTap: () => _showHabitDetails(id, habit),
+                    title: Text(
+                      habit["title"] ?? "Untitled",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        decoration: habit["completed"] == true
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: habit["completed"] == true
+                            ? Colors.grey
+                            : Colors.black,
                       ),
-                      if ((habit["streakCount"] ?? 0) > 0)
-                        Text(
-                          "🔥 Streak: ${habit["streakCount"]}",
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.deepOrange,
-                          ),
-                        ),
-                      if (habit["createdAt"] != null)
-                        Text(
-                          "Created: ${habit["createdAt"].toDate().toString().substring(0, 16)}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                    ],
-                  ),
-                  trailing: Wrap(
-                    spacing: 4,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          habit["completed"] == true
-                              ? Icons.check_circle
-                              : Icons.check_circle_outline,
-                          color: habit["completed"] == true
-                              ? Colors.green
-                              : Colors.grey,
-                        ),
-                        onPressed: () => _toggleComplete(id, habit),
+                    ),
+                    subtitle: Text(
+                      habit["frequency"] ?? "",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _openHabitForm(id: id, habit: habit),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteHabit(id, habit["title"] ?? ""),
-                      ),
-                    ],
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _openHabitForm(id: id, habit: habit),
+                    ),
                   ),
                 ),
               );
@@ -294,27 +341,7 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.deepPurple,
         child: const Icon(Icons.add),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.access_time),
-              onPressed: () {},
-              tooltip: "Habits",
-            ),
-            const SizedBox(width: 40),
-            IconButton(
-              icon: const Icon(Icons.person),
-              onPressed: () {},
-              tooltip: "Profile",
-            ),
-          ],
-        ),
-      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
