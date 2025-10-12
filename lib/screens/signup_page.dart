@@ -18,6 +18,8 @@ class _SignupPageState extends State<SignupPage> {
   final _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   void dispose() {
@@ -28,22 +30,59 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
+  Future<void> _showAlert(
+    String title,
+    String message, {
+    bool isSuccess = false,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              isSuccess ? Icons.check_circle_outline : Icons.error_outline,
+              color: isSuccess ? Colors.green : Colors.red,
+            ),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+
+    if (isSuccess && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🎉 Signup successful!"),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text.trim() !=
         _confirmPasswordController.text.trim()) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Passwords don’t match")));
+      await _showAlert("Password Error", "Passwords do not match");
       return;
     }
 
     try {
       setState(() => _isLoading = true);
 
-      // Step 1: Create user in FirebaseAuth
       final userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
@@ -52,34 +91,25 @@ class _SignupPageState extends State<SignupPage> {
 
       final uid = userCred.user!.uid;
 
-      // Step 2: Save user profile in Firestore
       await FirebaseFirestore.instance.collection("users").doc(uid).set({
         "fullName": _fullNameController.text.trim(),
         "email": _emailController.text.trim(),
         "createdAt": FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Signup successful!")));
+      await _showAlert(
+        "Signup Successful",
+        "Welcome, ${_fullNameController.text}!",
+        isSuccess: true,
+      );
 
-      Navigator.pop(context); // go back to login page
+      if (mounted) Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Auth error: ${e.message}")));
+      await _showAlert("Signup Failed", e.message ?? "Authentication error");
     } on FirebaseException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Firestore error: ${e.message}")));
+      await _showAlert("Database Error", e.message ?? "Firestore issue");
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Unexpected error: $e")));
+      await _showAlert("Unexpected Error", e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -88,65 +118,144 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Sign Up")),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400), // like a card
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, // vertical center
-                crossAxisAlignment: CrossAxisAlignment.center, // horizontal
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Full name field
-                  TextFormField(
-                    controller: _fullNameController,
-                    decoration: const InputDecoration(labelText: "Full Name"),
-                    validator: (val) =>
-                        val == null || val.isEmpty ? "Enter your name" : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Email field
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: "Email"),
-                    validator: (val) =>
-                        val == null || val.isEmpty ? "Enter an email" : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Password field
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(labelText: "Password"),
-                    obscureText: true,
-                    validator: (val) => val != null && val.length < 6
-                        ? "Password must be at least 6 characters"
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Confirm password field
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    decoration: const InputDecoration(
-                      labelText: "Confirm Password",
-                    ),
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 20),
-
-                  _isLoading
-                      ? const CircularProgressIndicator()
-                      : ElevatedButton(
-                          onPressed: _signup,
-                          child: const Text("Sign Up"),
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        "Create Account ✨",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Sign up to get started",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Full name
+                      TextFormField(
+                        controller: _fullNameController,
+                        decoration: const InputDecoration(
+                          labelText: "Full Name",
+                          prefixIcon: Icon(Icons.person_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Enter your full name"
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Email
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: "Email",
+                          prefixIcon: Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Enter your email"
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Password
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: !_isPasswordVisible,
+                        decoration: InputDecoration(
+                          labelText: "Password",
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: (val) => val != null && val.length < 6
+                            ? "Password must be at least 6 characters"
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Confirm Password
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: !_isConfirmPasswordVisible,
+                        decoration: InputDecoration(
+                          labelText: "Confirm Password",
+                          prefixIcon: const Icon(Icons.lock_person_outlined),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isConfirmPasswordVisible
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isConfirmPasswordVisible =
+                                    !_isConfirmPasswordVisible;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : FilledButton(
+                              onPressed: _signup,
+                              style: FilledButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text("Sign Up"),
+                            ),
+                      const SizedBox(height: 12),
+
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Already have an account? Log In"),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
