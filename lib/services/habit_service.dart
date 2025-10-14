@@ -27,7 +27,7 @@ class HabitService {
   // ---------------------- Update Habit ----------------------
   Future<void> updateHabit(String id, Map<String, dynamic> habitData) async {
     final habits = getHabitCollection();
-    habitData.remove("createdAt"); // don't override creation date
+    habitData.remove("createdAt");
     await habits.doc(id).update(habitData);
   }
 
@@ -58,17 +58,17 @@ class HabitService {
 
         if (frequency == "daily") {
           if (difference == 1) {
-            newStreakCount += 1;
+            newStreakCount += 1; // consecutive day
           } else if (difference > 1) {
-            newStreakCount = 1;
+            newStreakCount = 1; // missed a day, reset
           }
         } else if (frequency == "weekly") {
           int currentWeek = _getWeekNumber(now);
           int lastWeek = _getWeekNumber(lastCompletedDate);
           if (currentWeek - lastWeek == 1) {
-            newStreakCount += 1;
+            newStreakCount += 1; // consecutive week
           } else if (currentWeek != lastWeek) {
-            newStreakCount = 1;
+            newStreakCount = 1; // missed a week, reset
           }
         }
       }
@@ -82,7 +82,7 @@ class HabitService {
     });
   }
 
-  // Helper function to get week number
+  // Helper: get week number
   int _getWeekNumber(DateTime date) {
     final firstDayOfYear = DateTime(date.year, 1, 1);
     final daysOffset = firstDayOfYear.weekday - 1;
@@ -98,9 +98,6 @@ class HabitService {
     final snapshot = await habitsCollection.get();
     final now = DateTime.now();
 
-    // Get today's date at midnight
-    final todayMidnight = DateTime(now.year, now.month, now.day);
-
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final lastCompletedDate = data["lastCompletedDate"] != null
@@ -108,28 +105,30 @@ class HabitService {
           : null;
       final frequency = (data["frequency"] ?? "daily").toLowerCase();
       final isCompleted = data["completed"] == true;
+      final streakCount = data["streakCount"] ?? 0;
 
       if (lastCompletedDate == null) continue;
 
       bool shouldReset = false;
 
       if (frequency == "daily") {
-        // Reset at midnight every day
-        if (!isSameDay(now, lastCompletedDate)) {
+        if (!isSameDay(now, lastCompletedDate) &&
+            now.difference(lastCompletedDate).inDays >= 1) {
           shouldReset = true;
         }
       } else if (frequency == "weekly") {
-        // Reset every Monday (you can change this to any day)
-        final currentWeek = _getWeekNumber(now);
-        final lastWeek = _getWeekNumber(lastCompletedDate);
+        int currentWeek = _getWeekNumber(now);
+        int lastWeek = _getWeekNumber(lastCompletedDate);
         if (currentWeek != lastWeek) {
           shouldReset = true;
         }
       }
 
       if (shouldReset && isCompleted) {
-        // Reset completed status but keep the streak
-        await habitsCollection.doc(doc.id).update({"completed": false});
+        await habitsCollection.doc(doc.id).update({
+          "completed": false,
+          "streakCount": 0, // Reset streak when missed
+        });
       }
     }
   }
