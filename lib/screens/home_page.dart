@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/habit_service.dart';
+import 'habit_form_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,89 +22,22 @@ class _HomePageState extends State<HomePage> {
         .collection("habits");
   }
 
-  // ---------------------- Habit Form ----------------------
+  // ---------------------- Open Add/Edit Habit Screen ----------------------
   Future<void> _openHabitForm({String? id, Map<String, dynamic>? habit}) async {
-    final _formKey = GlobalKey<FormState>();
-    final titleController = TextEditingController(text: habit?["title"] ?? "");
-    final descriptionController = TextEditingController(
-      text: habit?["description"] ?? "",
-    );
-    final frequencyController = TextEditingController(
-      text: habit?["frequency"] ?? "",
-    );
-
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          appBar: AppBar(title: Text(id == null ? "Add Habit" : "Edit Habit")),
-          body: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                children: [
-                  TextFormField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: "Habit Title",
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? "Enter a title" : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: "Description",
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: frequencyController,
-                    decoration: const InputDecoration(
-                      labelText: "Frequency (e.g. Daily, Weekly)",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        final habitData = {
-                          "title": titleController.text.trim(),
-                          "description": descriptionController.text.trim(),
-                          "frequency": frequencyController.text.trim(),
-                        };
-
-                        if (id == null) {
-                          await _habitService.addHabit(habitData);
-                          _showSnack("Habit added successfully", Colors.green);
-                        } else {
-                          await _habitService.updateHabit(id, habitData);
-                          _showSnack("Habit updated successfully", Colors.blue);
-                        }
-
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    child: Text(
-                      id == null ? "Save Habit" : "Update Habit",
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        builder: (context) => HabitFormPage(
+          id: id,
+          habit: habit,
+          onSave: (habitData, {String? id}) async {
+            if (id == null) {
+              await _habitService.addHabit(habitData);
+              _showSnack("Habit added successfully", Colors.green);
+            } else {
+              await _habitService.updateHabit(id, habitData);
+              _showSnack("Habit updated successfully", Colors.blue);
+            }
+          },
         ),
       ),
     );
@@ -283,12 +217,13 @@ class _HomePageState extends State<HomePage> {
                 ),
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
-                    // Swipe right → toggle complete
-                    await _toggleComplete(id, habit);
+                    await _toggleComplete(id, habit); // Swipe right → complete
                     return false;
                   } else if (direction == DismissDirection.endToStart) {
-                    // Swipe left → delete with confirm
-                    await _deleteHabit(id, habit["title"] ?? "");
+                    await _deleteHabit(
+                      id,
+                      habit["title"] ?? "",
+                    ); // Swipe left → delete
                     return false;
                   }
                   return false;
