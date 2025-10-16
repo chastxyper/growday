@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: "Habit Tracker",
       theme: ThemeData(primarySwatch: Colors.indigo),
-      initialRoute: '/', // ✅ Set back to home (AuthWrapper)
+      initialRoute: '/',
 
       routes: {
         '/': (context) => const AuthWrapper(),

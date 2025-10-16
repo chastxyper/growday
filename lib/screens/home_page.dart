@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/habit_service.dart';
+import '../services/notification_service.dart'; // ✅ Import notification service
 import 'habit_form_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -20,6 +21,18 @@ class _HomePageState extends State<HomePage> {
         .collection("users")
         .doc(user!.uid)
         .collection("habits");
+  }
+
+  // ✅ Initialize notification when the page loads
+  @override
+  void initState() {
+    super.initState();
+    _setupNotification();
+  }
+
+  Future<void> _setupNotification() async {
+    await NotificationService.initialize();
+    await NotificationService.scheduleDailyReminder(); // schedules daily 8AM notif
   }
 
   // ---------------------- Open Add/Edit Habit Screen ----------------------
@@ -217,13 +230,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
-                    await _toggleComplete(id, habit); // Swipe right → complete
+                    await _toggleComplete(id, habit);
                     return false;
                   } else if (direction == DismissDirection.endToStart) {
-                    await _deleteHabit(
-                      id,
-                      habit["title"] ?? "",
-                    ); // Swipe left → delete
+                    await _deleteHabit(id, habit["title"] ?? "");
                     return false;
                   }
                   return false;
