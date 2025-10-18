@@ -20,6 +20,7 @@ class HabitService {
       "completed": false,
       "completedAt": null,
       "streakCount": 0,
+      "longestStreak": 0,
       "lastCompletedDate": null,
     });
   }
@@ -38,58 +39,84 @@ class HabitService {
   }
 
   // ---------------------- Toggle Complete ----------------------
-  Future<void> toggleComplete(String id, Map<String, dynamic> habit) async {
+  Future<void> toggleComplete(String id) async {
     final habits = getHabitCollection();
-    final isCompleted = habit["completed"] == true;
-    final now = DateTime.now();
-    final frequency = (habit["frequency"] ?? "daily").toString().toLowerCase();
-    final lastCompletedDate = habit["lastCompletedDate"] != null
-        ? (habit["lastCompletedDate"] as Timestamp).toDate()
-        : null;
+    final docRef = habits.doc(id);
 
-    int newStreakCount = habit["streakCount"] ?? 0;
+    await _firestore.runTransaction((tx) async {
+      final snapshot = await tx.get(docRef);
+      if (!snapshot.exists) throw Exception("Habit not found");
 
-    if (!isCompleted) {
-      // Completing the habit
-      if (lastCompletedDate == null) {
-        newStreakCount = 1;
-      } else {
-        final difference = now.difference(lastCompletedDate).inDays;
+      final data = snapshot.data()!;
+      final isCompleted = data["completed"] == true;
+      final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
 
-        if (frequency == "daily") {
-          if (difference == 1) {
-            newStreakCount += 1; // consecutive day
-          } else if (difference > 1) {
-            newStreakCount = 1; // missed a day, reset
-          }
-        } else if (frequency == "weekly") {
-          int currentWeek = _getWeekNumber(now);
-          int lastWeek = _getWeekNumber(lastCompletedDate);
-          if (currentWeek - lastWeek == 1) {
-            newStreakCount += 1; // consecutive week
-          } else if (currentWeek != lastWeek) {
-            newStreakCount = 1; // missed a week, reset
+      final lastTs = data["lastCompletedDate"] as Timestamp?;
+      final lastDate = lastTs?.toDate();
+      final now = DateTime.now();
+
+      // Calendar-day difference
+      int dayDiff = -999;
+      if (lastDate != null) {
+        final lastDateOnly = DateTime(
+          lastDate.year,
+          lastDate.month,
+          lastDate.day,
+        );
+        final nowDateOnly = DateTime(now.year, now.month, now.day);
+        dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
+      }
+
+      int newStreak = data["streakCount"] ?? 0;
+      int longestStreak = data["longestStreak"] ?? 0;
+
+      if (!isCompleted) {
+        // Completing now
+        if (lastDate == null) {
+          newStreak = 1;
+        } else {
+          if (frequency == "daily") {
+            if (dayDiff == 1) {
+              newStreak += 1;
+            } else if (dayDiff > 1 || dayDiff < 0) {
+              newStreak = 1;
+            } else if (dayDiff == 0) {
+              // already completed today, no change
+              newStreak = data["streakCount"] ?? 1;
+            }
+          } else if (frequency == "weekly") {
+            final currentWeek = _getIsoWeekNumber(now);
+            final lastWeek = _getIsoWeekNumber(lastDate);
+            final currentYear = now.year;
+            final lastYear = lastDate.year;
+            final weekDiff =
+                (currentYear - lastYear) * 53 + (currentWeek - lastWeek);
+            if (weekDiff == 1) {
+              newStreak += 1;
+            } else if (weekDiff > 1 || weekDiff <= 0) {
+              newStreak = 1;
+            }
           }
         }
+
+        if (newStreak > longestStreak) longestStreak = newStreak;
+
+        tx.update(docRef, {
+          "completed": true,
+          "completedAt": FieldValue.serverTimestamp(),
+          "lastCompletedDate": FieldValue.serverTimestamp(),
+          "streakCount": newStreak,
+          "longestStreak": longestStreak,
+        });
+      } else {
+        // Uncomplete habit
+        tx.update(docRef, {
+          "completed": false,
+          "completedAt": null,
+          "lastCompletedDate": null,
+        });
       }
-    }
-
-    await habits.doc(id).update({
-      "completed": !isCompleted,
-      "completedAt": !isCompleted ? FieldValue.serverTimestamp() : null,
-      "lastCompletedDate": !isCompleted ? Timestamp.fromDate(now) : null,
-      "streakCount": newStreakCount,
     });
-  }
-
-  // Helper: get week number
-  int _getWeekNumber(DateTime date) {
-    final firstDayOfYear = DateTime(date.year, 1, 1);
-    final daysOffset = firstDayOfYear.weekday - 1;
-    final diff = date
-        .difference(firstDayOfYear.subtract(Duration(days: daysOffset)))
-        .inDays;
-    return (diff / 7).ceil();
   }
 
   // ---------------------- Daily / Weekly Reset ----------------------
@@ -97,40 +124,54 @@ class HabitService {
     final habitsCollection = getHabitCollection();
     final snapshot = await habitsCollection.get();
     final now = DateTime.now();
+    final nowDateOnly = DateTime(now.year, now.month, now.day);
 
     for (final doc in snapshot.docs) {
       final data = doc.data();
-      final lastCompletedDate = data["lastCompletedDate"] != null
-          ? (data["lastCompletedDate"] as Timestamp).toDate()
-          : null;
-      final frequency = (data["frequency"] ?? "daily").toLowerCase();
+      final lastTs = data["lastCompletedDate"] as Timestamp?;
+      if (lastTs == null) continue;
+
+      final lastDate = lastTs.toDate();
+      final lastDateOnly = DateTime(
+        lastDate.year,
+        lastDate.month,
+        lastDate.day,
+      );
+      final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
       final isCompleted = data["completed"] == true;
       final streakCount = data["streakCount"] ?? 0;
-
-      if (lastCompletedDate == null) continue;
 
       bool shouldReset = false;
 
       if (frequency == "daily") {
-        if (!isSameDay(now, lastCompletedDate) &&
-            now.difference(lastCompletedDate).inDays >= 1) {
-          shouldReset = true;
-        }
+        final dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
+        if (dayDiff >= 1) shouldReset = true;
       } else if (frequency == "weekly") {
-        int currentWeek = _getWeekNumber(now);
-        int lastWeek = _getWeekNumber(lastCompletedDate);
-        if (currentWeek != lastWeek) {
-          shouldReset = true;
-        }
+        final currentWeek = _getIsoWeekNumber(now);
+        final lastWeek = _getIsoWeekNumber(lastDate);
+        final currentYear = now.year;
+        final lastYear = lastDate.year;
+        final weekDiff =
+            (currentYear - lastYear) * 53 + (currentWeek - lastWeek);
+        if (weekDiff >= 1) shouldReset = true;
       }
 
-      if (shouldReset && isCompleted) {
+      if (shouldReset && (isCompleted || streakCount > 0)) {
         await habitsCollection.doc(doc.id).update({
           "completed": false,
-          "streakCount": 0, // Reset streak when missed
+          "streakCount": 0,
         });
       }
     }
+  }
+
+  // ---------------------- Helper Functions ----------------------
+  int _getIsoWeekNumber(DateTime date) {
+    // ISO week number: Monday as first day of week
+    final wednesday = date.add(Duration(days: (3 - ((date.weekday + 6) % 7))));
+    final firstThursday = DateTime(wednesday.year, 1, 4);
+    final weekNumber = 1 + ((wednesday.difference(firstThursday).inDays ~/ 7));
+    return weekNumber;
   }
 
   bool isSameDay(DateTime a, DateTime b) {
