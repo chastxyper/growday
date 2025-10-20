@@ -83,44 +83,15 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ---------------------- Toggle Complete (updated) ----------------------
-  Future<void> _toggleComplete(String id) async {
-    try {
-      // Call service (now only expects id)
-      await _habitService.toggleComplete(id);
-
-      // Fetch updated doc to read new completed status and streak
-      final updatedDoc = await _habitService.getHabitCollection().doc(id).get();
-      final updatedData = updatedDoc.data();
-      final completed = updatedData?['completed'] == true;
-      final newStreak = updatedData?['streakCount'] ?? 0;
-
-      // Show dynamic feedback
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              completed
-                  ? "🎉 Habit completed — you're on a $newStreak-day streak!"
-                  : "Habit marked incomplete",
-              style: const TextStyle(fontSize: 15),
-            ),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: completed ? Colors.green : Colors.orange,
-          ),
-        );
-      }
-
-      // Refresh UI if needed
-      setState(() {});
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error toggling habit: $e')));
-      }
-    }
+  // ---------------------- Toggle Complete ----------------------
+  Future<void> _toggleComplete(String id, Map<String, dynamic> habit) async {
+    await _habitService.toggleComplete(id);
+    _showSnack(
+      habit["completed"] == true
+          ? "Habit marked incomplete"
+          : "Habit completed 🎉",
+      habit["completed"] == true ? Colors.orange : Colors.green,
+    );
   }
 
   // ---------------------- Show Habit Details ----------------------
@@ -148,8 +119,7 @@ class _HomePageState extends State<HomePage> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              // updated: pass only id
-              await _toggleComplete(id);
+              await _toggleComplete(id, habit);
             },
             child: Text(
               habit["completed"] == true
@@ -167,7 +137,7 @@ class _HomePageState extends State<HomePage> {
     await FirebaseAuth.instance.signOut();
   }
 
-  // ---------------------- Snackbar helper ----------------------
+  // ---------------------- Snackbar ----------------------
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(
       context,
@@ -209,7 +179,7 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<QuerySnapshot>(
         stream: _habitCollection
             .orderBy("createdAt", descending: true)
             .snapshots(),
@@ -260,8 +230,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
-                    // updated: pass only id
-                    await _toggleComplete(id);
+                    await _toggleComplete(id, habit);
                     return false;
                   } else if (direction == DismissDirection.endToStart) {
                     await _deleteHabit(id, habit["title"] ?? "");

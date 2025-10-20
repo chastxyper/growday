@@ -6,74 +6,130 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  // ✅ Initialize notification settings
+  /// Initialize notifications
   static Future<void> initialize() async {
-    const AndroidInitializationSettings androidInitSettings =
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation(tz.local.name));
+
+    const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initSettings = InitializationSettings(
-      android: androidInitSettings,
+      android: androidInit,
     );
 
     await _notificationsPlugin.initialize(initSettings);
-
-    // Setup timezone (required for scheduled notifications)
-    tz.initializeTimeZones();
   }
 
-  // ✅ Show a test notification
-  static Future<void> showTestNotification() async {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'habit_channel', // channel ID
-          'Habit Reminders', // channel name
-          channelDescription: 'Daily habit reminder notifications',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
-
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidDetails,
+  /// Helper to schedule a daily notification
+  static Future<void> _scheduleDaily({
+    required int id,
+    required String title,
+    required String body,
+    required int hour,
+    required int minute,
+  }) async {
+    final androidDetails = AndroidNotificationDetails(
+      'daily_channel',
+      'Daily Reminders',
+      channelDescription: 'Fixed reminders for GrowDay app',
+      importance: Importance.max,
+      priority: Priority.high,
     );
 
-    await _notificationsPlugin.show(
-      0,
-      'GrowDay Test Notification',
-      'This is a test reminder from your Habit Tracker!',
-      notificationDetails,
-    );
-  }
+    final details = NotificationDetails(android: androidDetails);
 
-  // ✅ Schedule a daily 8 AM reminder
-  static Future<void> scheduleDailyReminder() async {
+    final now = tz.TZDateTime.now(tz.local);
+    var schedule = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    // If the scheduled time already passed today, schedule for tomorrow
+    if (schedule.isBefore(now)) {
+      schedule = schedule.add(const Duration(days: 1));
+    }
+
     await _notificationsPlugin.zonedSchedule(
-      1,
-      'Daily Habit Reminder',
-      'Remember to complete your habits today!',
-      _nextInstanceOf8AM(),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_reminder_channel',
-          'Daily Reminders',
-          channelDescription: 'Reminds users every morning to do habits',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidAllowWhileIdle: true,
+      id,
+      title,
+      body,
+      schedule,
+      details,
+      androidAllowWhileIdle: true, // ✅ compatible with your version
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // repeats daily
     );
   }
 
-  // Helper: Calculate the next 8 AM
-  static tz.TZDateTime _nextInstanceOf8AM() {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, 8);
-    if (scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
-    }
-    return scheduled;
+  /// 🔔 Debug version — fires 1 & 2 minutes after launch
+  static Future<void> scheduleDebugTestReminders() async {
+    await _notificationsPlugin.cancelAll(); // clear old schedules
+
+    final now = DateTime.now();
+
+    await _scheduleDaily(
+      id: 2001,
+      title: 'Test Morning 🌞',
+      body: 'This is a test notification (1 minute after launch)',
+      hour: now.hour,
+      minute: (now.minute + 1) % 60,
+    );
+
+    await _scheduleDaily(
+      id: 2002,
+      title: 'Test Evening ✨',
+      body: 'Second test notification (2 minutes after launch)',
+      hour: now.hour,
+      minute: (now.minute + 2) % 60,
+    );
   }
+
+  /// 🕗 Real version — 8 AM and 10 PM every day
+  static Future<void> scheduleFixedDailyReminders() async {
+    await _notificationsPlugin.cancelAll();
+
+    await _scheduleDaily(
+      id: 1001,
+      title: 'Good Morning 🌞',
+      body: 'Start your day strong! Review your habits now.',
+      hour: 8,
+      minute: 0,
+    );
+
+    await _scheduleDaily(
+      id: 1002,
+      title: 'Evening Check ✨',
+      body: 'Reflect and mark your habits before you sleep.',
+      hour: 22,
+      minute: 0,
+    );
+  }
+
+  /// Cancel all notifications
+  static Future<void> cancelAll() async => _notificationsPlugin.cancelAll();
+
+  static Future<void> showTestNotification() async {
+    await _notificationsPlugin.show(
+      9999, // any unique ID
+      'Test Notification 🎯',
+      'This is a direct test notification!',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'test_channel',
+          'Test Notifications',
+          channelDescription: 'Used for manual test triggers',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> scheduleDailyReminder() async {}
 }
