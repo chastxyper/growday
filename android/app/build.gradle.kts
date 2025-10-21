@@ -7,22 +7,22 @@ plugins {
 
 android {
     namespace = "com.example.growday"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.example.growday"
         minSdk = 23
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        multiDexEnabled = true // ✅ Ensures compatibility with many dependencies
+        multiDexEnabled = true
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true // ✅ Required for modern Java APIs
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
