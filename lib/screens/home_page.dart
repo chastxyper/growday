@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/habit_service.dart';
-import '../services/notification_service.dart'; // ✅ Import notification service
+import '../services/notification_service.dart';
 import 'habit_form_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,7 +23,6 @@ class _HomePageState extends State<HomePage> {
         .collection("habits");
   }
 
-  // ✅ Initialize notification when the page loads
   @override
   void initState() {
     super.initState();
@@ -32,10 +31,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _setupNotification() async {
     await NotificationService.initialize();
-    await NotificationService.scheduleDailyReminder(); // schedules daily 8AM notif
+    await NotificationService.scheduleDailyReminder();
   }
 
-  // ---------------------- Open Add/Edit Habit Screen ----------------------
   Future<void> _openHabitForm({String? id, Map<String, dynamic>? habit}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -56,17 +54,23 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------------------- Delete Habit ----------------------
   Future<void> _deleteHabit(String id, String title) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: Text("Are you sure you want to delete \"$title\"?"),
+        backgroundColor: const Color(0xFF2C2C2E),
+        title: const Text(
+          "Confirm Delete",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          "Are you sure you want to delete \"$title\"?",
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text("Cancel"),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -83,7 +87,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ---------------------- Toggle Complete ----------------------
   Future<void> _toggleComplete(String id, Map<String, dynamic> habit) async {
     await _habitService.toggleComplete(id);
     _showSnack(
@@ -94,27 +97,39 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------------------- Show Habit Details ----------------------
   void _showHabitDetails(String id, Map<String, dynamic> habit) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(habit["title"] ?? "Habit Details"),
+        backgroundColor: const Color(0xFF2C2C2E),
+        title: Text(
+          habit["title"] ?? "Habit Details",
+          style: const TextStyle(color: Colors.white),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (habit["description"] != null && habit["description"] != "")
-              Text(habit["description"]),
+              Text(
+                habit["description"],
+                style: const TextStyle(color: Colors.white70),
+              ),
             const SizedBox(height: 10),
-            Text("Frequency: ${habit["frequency"] ?? "N/A"}"),
-            Text("Streak: ${habit["streakCount"] ?? 0} 🔥"),
+            Text(
+              "Frequency: ${habit["frequency"] ?? "N/A"}",
+              style: const TextStyle(color: Colors.white70),
+            ),
+            Text(
+              "Streak: ${habit["streakCount"] ?? 0} 🔥",
+              style: const TextStyle(color: Colors.white70),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Close"),
+            child: const Text("Close", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -132,34 +147,46 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ---------------------- Logout ----------------------
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
   }
 
-  // ---------------------- Snackbar ----------------------
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
-  // ---------------------- UI ----------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF1C1C1E),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF2C2C2E),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // ✅ White hamburger/menu icon
         title: const Text(
           "GrowDay",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white, // ✅ White title
+          ),
         ),
       ),
       drawer: Drawer(
+        backgroundColor: const Color(0xFF2C2C2E),
         child: Column(
           children: [
             UserAccountsDrawerHeader(
-              accountName: Text(user?.displayName ?? "User"),
-              accountEmail: Text(user?.email ?? "No email"),
+              accountName: Text(
+                user?.displayName ?? "User",
+                style: const TextStyle(color: Colors.white),
+              ),
+              accountEmail: Text(
+                user?.email ?? "No email",
+                style: const TextStyle(color: Colors.white70),
+              ),
               currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(Icons.person, size: 40, color: Colors.deepPurple),
@@ -167,13 +194,16 @@ class _HomePageState extends State<HomePage> {
               decoration: const BoxDecoration(color: Colors.deepPurple),
             ),
             ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text("Settings"),
+              leading: const Icon(Icons.settings, color: Colors.white),
+              title: const Text(
+                "Settings",
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () {},
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text("Logout"),
+              title: const Text("Logout", style: TextStyle(color: Colors.red)),
               onTap: _logout,
             ),
           ],
@@ -185,7 +215,12 @@ class _HomePageState extends State<HomePage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(child: Text("Error loading habits"));
+            return const Center(
+              child: Text(
+                "Error loading habits",
+                style: TextStyle(color: Colors.white),
+              ),
+            );
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -197,7 +232,7 @@ class _HomePageState extends State<HomePage> {
               child: Text(
                 "No habits yet.\nTap + to add one!",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             );
           }
@@ -239,6 +274,7 @@ class _HomePageState extends State<HomePage> {
                   return false;
                 },
                 child: Card(
+                  color: const Color(0xFF2C2C2E),
                   elevation: 3,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -258,22 +294,18 @@ class _HomePageState extends State<HomePage> {
                         decoration: habit["completed"] == true
                             ? TextDecoration.lineThrough
                             : null,
-                        color: habit["completed"] == true
-                            ? Colors.grey
-                            : Colors.black,
+                        color: Colors.white, // ✅ Always white for visibility
                       ),
                     ),
                     subtitle: Text(
                       habit["frequency"] ?? "",
                       style: const TextStyle(
                         fontSize: 14,
-                        color: Colors.black54,
+                        color: Colors.white70, // ✅ Lighter white for contrast
                       ),
                     ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () => _openHabitForm(id: id, habit: habit),
-                    ),
+                    trailing: const Icon(Icons.edit, color: Colors.blueAccent),
+                    onLongPress: () => _openHabitForm(id: id, habit: habit),
                   ),
                 ),
               );
@@ -284,9 +316,8 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openHabitForm(),
         backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
