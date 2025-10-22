@@ -11,12 +11,14 @@ class HabitService {
     return _firestore.collection("users").doc(user.uid).collection("habits");
   }
 
-  // ---------------------- Add Habit ----------------------
+  // ---------------------- Add Habit (UTC Safe) ----------------------
   Future<void> addHabit(Map<String, dynamic> habitData) async {
     final habits = getHabitCollection();
+    final now = DateTime.now().toUtc();
+
     await habits.add({
       ...habitData,
-      "createdAt": FieldValue.serverTimestamp(),
+      "createdAt": Timestamp.fromDate(now), // Use UTC-based timestamp
       "completed": false,
       "completedAt": null,
       "streakCount": 0,
@@ -38,7 +40,7 @@ class HabitService {
     await habits.doc(id).delete();
   }
 
-  // ---------------------- Toggle Complete ----------------------
+  // ---------------------- Toggle Complete (UTC Safe) ----------------------
   Future<void> toggleComplete(String id) async {
     final habits = getHabitCollection();
     final docRef = habits.doc(id);
@@ -52,19 +54,18 @@ class HabitService {
       final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
 
       final lastTs = data["lastCompletedDate"] as Timestamp?;
-      final lastDate = lastTs?.toDate();
-      final now = DateTime.now();
+      final lastDate = lastTs?.toDate().toUtc();
+      final now = DateTime.now().toUtc();
 
-      // Calendar-day difference
-      int dayDiff = -999;
+      // Normalize dates to UTC midnight for comparison
+      final nowDateOnly = DateTime.utc(now.year, now.month, now.day);
+      DateTime? lastDateOnly;
       if (lastDate != null) {
-        final lastDateOnly = DateTime(
+        lastDateOnly = DateTime.utc(
           lastDate.year,
           lastDate.month,
           lastDate.day,
         );
-        final nowDateOnly = DateTime(now.year, now.month, now.day);
-        dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
       }
 
       int newStreak = data["streakCount"] ?? 0;
@@ -72,21 +73,22 @@ class HabitService {
 
       if (!isCompleted) {
         // Completing now
-        if (lastDate == null) {
+        if (lastDateOnly == null) {
           newStreak = 1;
         } else {
           if (frequency == "daily") {
+            final dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
             if (dayDiff == 1) {
               newStreak += 1;
             } else if (dayDiff > 1 || dayDiff < 0) {
               newStreak = 1;
             } else if (dayDiff == 0) {
-              // already completed today, no change
+              // already completed today
               newStreak = data["streakCount"] ?? 1;
             }
           } else if (frequency == "weekly") {
             final currentWeek = _getIsoWeekNumber(now);
-            final lastWeek = _getIsoWeekNumber(lastDate);
+            final lastWeek = _getIsoWeekNumber(lastDate!);
             final currentYear = now.year;
             final lastYear = lastDate.year;
             final weekDiff =
@@ -103,8 +105,8 @@ class HabitService {
 
         tx.update(docRef, {
           "completed": true,
-          "completedAt": FieldValue.serverTimestamp(),
-          "lastCompletedDate": FieldValue.serverTimestamp(),
+          "completedAt": Timestamp.fromDate(now),
+          "lastCompletedDate": Timestamp.fromDate(now), // UTC-safe timestamp
           "streakCount": newStreak,
           "longestStreak": longestStreak,
         });
@@ -119,24 +121,26 @@ class HabitService {
     });
   }
 
-  // ---------------------- Daily / Weekly Reset ----------------------
+  // ---------------------- Daily / Weekly Reset (UTC Safe) ----------------------
   Future<void> refreshHabitsStatus() async {
     final habitsCollection = getHabitCollection();
     final snapshot = await habitsCollection.get();
-    final now = DateTime.now();
-    final nowDateOnly = DateTime(now.year, now.month, now.day);
+
+    final now = DateTime.now().toUtc();
+    final nowDateOnly = DateTime.utc(now.year, now.month, now.day);
 
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final lastTs = data["lastCompletedDate"] as Timestamp?;
       if (lastTs == null) continue;
 
-      final lastDate = lastTs.toDate();
-      final lastDateOnly = DateTime(
+      final lastDate = lastTs.toDate().toUtc();
+      final lastDateOnly = DateTime.utc(
         lastDate.year,
         lastDate.month,
         lastDate.day,
       );
+
       final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
       final isCompleted = data["completed"] == true;
       final streakCount = data["streakCount"] ?? 0;
@@ -145,7 +149,8 @@ class HabitService {
 
       if (frequency == "daily") {
         final dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
-        if (dayDiff >= 1) shouldReset = true;
+        // Reset only if user missed more than one full day
+        if (dayDiff > 1) shouldReset = true;
       } else if (frequency == "weekly") {
         final currentWeek = _getIsoWeekNumber(now);
         final lastWeek = _getIsoWeekNumber(lastDate);
@@ -153,7 +158,7 @@ class HabitService {
         final lastYear = lastDate.year;
         final weekDiff =
             (currentYear - lastYear) * 53 + (currentWeek - lastWeek);
-        if (weekDiff >= 1) shouldReset = true;
+        if (weekDiff > 1) shouldReset = true;
       }
 
       if (shouldReset && (isCompleted || streakCount > 0)) {
