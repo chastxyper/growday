@@ -18,7 +18,7 @@ class HabitService {
 
     await habits.add({
       ...habitData,
-      "createdAt": Timestamp.fromDate(now), // Use UTC-based timestamp
+      "createdAt": Timestamp.fromDate(now),
       "completed": false,
       "completedAt": null,
       "streakCount": 0,
@@ -57,7 +57,6 @@ class HabitService {
       final lastDate = lastTs?.toDate().toUtc();
       final now = DateTime.now().toUtc();
 
-      // Normalize dates to UTC midnight for comparison
       final nowDateOnly = DateTime.utc(now.year, now.month, now.day);
       DateTime? lastDateOnly;
       if (lastDate != null) {
@@ -72,7 +71,7 @@ class HabitService {
       int longestStreak = data["longestStreak"] ?? 0;
 
       if (!isCompleted) {
-        // Completing now
+        // Completing habit
         if (lastDateOnly == null) {
           newStreak = 1;
         } else {
@@ -83,7 +82,6 @@ class HabitService {
             } else if (dayDiff > 1 || dayDiff < 0) {
               newStreak = 1;
             } else if (dayDiff == 0) {
-              // already completed today
               newStreak = data["streakCount"] ?? 1;
             }
           } else if (frequency == "weekly") {
@@ -106,7 +104,7 @@ class HabitService {
         tx.update(docRef, {
           "completed": true,
           "completedAt": Timestamp.fromDate(now),
-          "lastCompletedDate": Timestamp.fromDate(now), // UTC-safe timestamp
+          "lastCompletedDate": Timestamp.fromDate(now),
           "streakCount": newStreak,
           "longestStreak": longestStreak,
         });
@@ -121,7 +119,7 @@ class HabitService {
     });
   }
 
-  // ---------------------- Daily / Weekly Reset (UTC Safe) ----------------------
+  // ---------------------- Daily / Weekly Reset (Improved Streak Logic - UTC Safe) ----------------------
   Future<void> refreshHabitsStatus() async {
     final habitsCollection = getHabitCollection();
     final snapshot = await habitsCollection.get();
@@ -132,7 +130,15 @@ class HabitService {
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final lastTs = data["lastCompletedDate"] as Timestamp?;
-      if (lastTs == null) continue;
+      final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
+      final isCompleted = data["completed"] == true;
+
+      if (lastTs == null) {
+        if (isCompleted) {
+          await habitsCollection.doc(doc.id).update({"completed": false});
+        }
+        continue;
+      }
 
       final lastDate = lastTs.toDate().toUtc();
       final lastDateOnly = DateTime.utc(
@@ -141,16 +147,19 @@ class HabitService {
         lastDate.day,
       );
 
-      final frequency = (data["frequency"] ?? "daily").toString().toLowerCase();
-      final isCompleted = data["completed"] == true;
-      final streakCount = data["streakCount"] ?? 0;
-
-      bool shouldReset = false;
+      bool shouldUnmark = false;
+      bool shouldResetStreak = false;
 
       if (frequency == "daily") {
         final dayDiff = nowDateOnly.difference(lastDateOnly).inDays;
-        // Reset only if user missed more than one full day
-        if (dayDiff > 1) shouldReset = true;
+        if (dayDiff == 1) {
+          // new day — unmark complete but keep streak
+          shouldUnmark = true;
+        } else if (dayDiff > 1) {
+          // missed at least 2 days — reset streak
+          shouldUnmark = true;
+          shouldResetStreak = true;
+        }
       } else if (frequency == "weekly") {
         final currentWeek = _getIsoWeekNumber(now);
         final lastWeek = _getIsoWeekNumber(lastDate);
@@ -158,21 +167,25 @@ class HabitService {
         final lastYear = lastDate.year;
         final weekDiff =
             (currentYear - lastYear) * 53 + (currentWeek - lastWeek);
-        if (weekDiff > 1) shouldReset = true;
+
+        if (weekDiff == 1) {
+          shouldUnmark = true; // new week — keep streak
+        } else if (weekDiff > 1) {
+          shouldUnmark = true;
+          shouldResetStreak = true;
+        }
       }
 
-      if (shouldReset && (isCompleted || streakCount > 0)) {
-        await habitsCollection.doc(doc.id).update({
-          "completed": false,
-          "streakCount": 0,
-        });
+      if (shouldUnmark) {
+        final Map<String, dynamic> updateData = {"completed": false};
+        if (shouldResetStreak) updateData["streakCount"] = 0;
+        await habitsCollection.doc(doc.id).update(updateData);
       }
     }
   }
 
   // ---------------------- Helper Functions ----------------------
   int _getIsoWeekNumber(DateTime date) {
-    // ISO week number: Monday as first day of week
     final wednesday = date.add(Duration(days: (3 - ((date.weekday + 6) % 7))));
     final firstThursday = DateTime(wednesday.year, 1, 4);
     final weekNumber = 1 + ((wednesday.difference(firstThursday).inDays ~/ 7));

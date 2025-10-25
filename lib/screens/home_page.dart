@@ -16,7 +16,6 @@ class _HomePageState extends State<HomePage> {
   final User? user = FirebaseAuth.instance.currentUser;
   final HabitService _habitService = HabitService();
 
-  // 🔹 Access user's habit collection in Firestore
   CollectionReference<Map<String, dynamic>> get _habitCollection {
     return FirebaseFirestore.instance
         .collection("users")
@@ -27,16 +26,16 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _setupNotification(); // 🔔 Schedule daily notifications when app starts
+    _setupNotification();
+    _habitService
+        .refreshHabitsStatus(); // ✅ Auto-refresh streaks & status at startup
   }
 
-  // 🔹 Initializes local notifications
   Future<void> _setupNotification() async {
     await NotificationService.initialize();
     await NotificationService.scheduleDailyReminder();
   }
 
-  // 🔹 Opens HabitFormPage for adding or editing a habit
   Future<void> _openHabitForm({String? id, Map<String, dynamic>? habit}) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -57,7 +56,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 🔹 Confirms and deletes a habit from Firestore
   Future<void> _deleteHabit(String id, String title) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -91,7 +89,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // 🔹 Marks habit as complete or incomplete
   Future<void> _toggleComplete(String id, Map<String, dynamic> habit) async {
     await _habitService.toggleComplete(id);
     _showSnack(
@@ -102,7 +99,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 🔹 Displays habit details in a popup dialog
   void _showHabitDetails(String id, Map<String, dynamic> habit) {
     showDialog(
       context: context,
@@ -153,13 +149,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 🔹 Handles user logout
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    // ⚠️ Reminder: redirect to login screen after logout
+    // TODO: Redirect to login screen
   }
 
-  // 🔹 Shows feedback messages
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(
       context,
@@ -169,22 +163,15 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E), // 🖤 Dark background
+      backgroundColor: const Color(0xFF1C1C1E),
       appBar: AppBar(
         backgroundColor: const Color(0xFF2C2C2E),
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // ☰ White menu icon
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "GrowDay",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white, // ✅ White title text
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
-
-      // 🔹 Drawer with user info and logout option
       drawer: Drawer(
         backgroundColor: const Color(0xFF2C2C2E),
         child: Column(
@@ -210,9 +197,7 @@ class _HomePageState extends State<HomePage> {
                 "Settings",
                 style: TextStyle(color: Colors.white),
               ),
-              onTap: () {
-                // ⚙️ TODO: Add settings page or theme toggle here
-              },
+              onTap: () {},
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -222,8 +207,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-
-      // 🔹 StreamBuilder listens to Firestore for real-time habit updates
       body: StreamBuilder<QuerySnapshot>(
         stream: _habitCollection
             .orderBy("createdAt", descending: true)
@@ -252,7 +235,6 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          // 🔹 Displays list of habits with swipe actions
           return ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: data.length,
@@ -279,19 +261,16 @@ class _HomePageState extends State<HomePage> {
                     size: 28,
                   ),
                 ),
-
-                // 🧭 Swipe left = delete | Swipe right = complete
                 confirmDismiss: (direction) async {
                   if (direction == DismissDirection.startToEnd) {
                     await _toggleComplete(id, habit);
-                    return false; // Prevent auto-dismiss
+                    return false;
                   } else if (direction == DismissDirection.endToStart) {
                     await _deleteHabit(id, habit["title"] ?? "");
                     return false;
                   }
                   return false;
                 },
-
                 child: Card(
                   color: const Color(0xFF2C2C2E),
                   elevation: 3,
@@ -313,7 +292,7 @@ class _HomePageState extends State<HomePage> {
                         decoration: habit["completed"] == true
                             ? TextDecoration.lineThrough
                             : null,
-                        color: Colors.white, // Always visible on dark mode
+                        color: Colors.white,
                       ),
                     ),
                     subtitle: Text(
@@ -324,8 +303,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     trailing: const Icon(Icons.edit, color: Colors.blueAccent),
-                    onLongPress: () =>
-                        _openHabitForm(id: id, habit: habit), // ✏️ Quick edit
+                    onLongPress: () => _openHabitForm(id: id, habit: habit),
                   ),
                 ),
               );
@@ -333,8 +311,6 @@ class _HomePageState extends State<HomePage> {
           );
         },
       ),
-
-      // ➕ Add habit button
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openHabitForm(),
         backgroundColor: Colors.deepPurple,
